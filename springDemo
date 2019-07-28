@@ -1,0 +1,519 @@
+1)Model
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
+public class Student {
+	@Id
+	@Column
+	@GeneratedValue(strategy = GenerationType.AUTO) // for autonumber
+	private int studentId;
+	@Column
+	private String firstname;
+	@Column
+	private String lastname;
+	@Column
+	private int yearLevel;
+
+	public Student() {
+	}
+
+	public Student(int studentId, String firstname, String lastname, int yearLevel) {
+		super();
+		this.studentId = studentId;
+		this.firstname = firstname;
+		this.lastname = lastname;
+		this.yearLevel = yearLevel;
+	}
+
+	public int getStudentId() {
+		return studentId;
+	}
+
+	public void setStudentId(int studentId) {
+		this.studentId = studentId;
+	}
+
+	public String getFirstname() {
+		return firstname;
+	}
+
+	public void setFirstname(String firstname) {
+		this.firstname = firstname;
+	}
+
+	public String getLastname() {
+		return lastname;
+	}
+
+	public void setLastname(String lastname) {
+		this.lastname = lastname;
+	}
+
+	public int getYearLevel() {
+		return yearLevel;
+	}
+
+	public void setYearLevel(int yearLevel) {
+		this.yearLevel = yearLevel;
+	}
+
+}
+
+2)controller
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+
+
+
+@Controller
+public class StudentController {
+	@Autowired
+	private StudentService studentService;
+
+	@RequestMapping("/index")
+	public String setupForm(Map<String, Object> map) {
+		Student student = new Student();
+		map.put("student", student);
+		map.put("studentList", studentService.getAllStudent());
+		return "student";
+	}
+
+	@RequestMapping(value = "/student.do", method = RequestMethod.POST)
+	public String doActions(@ModelAttribute Student student, BindingResult result, @RequestParam String action,
+			Map<String, Object> map) {
+		Student studentResult = new Student();
+		switch (action.toLowerCase()) {
+		case "add":
+			studentService.add(student);
+			studentResult = student;
+			break;
+		case "edit":
+			studentService.edit(student);
+			studentResult = student;
+			break;
+		case "delete":
+			studentService.delete(student.getStudentId());
+			studentResult = new Student();
+			map.put("studentList", studentService.getAllStudent());
+			return "student";
+		}
+		return action;
+	}
+}
+3)dao
+public interface StudentDao {
+	public void add(Student student);
+	public void edit(Student student);
+	public void delete(int studentId);
+	public Student getStudent(int studentId);
+	public List getAllStudent();
+
+}
+4)dao imple
+@Repository
+public class StudentDaoImpl implements StudentDao {
+	@Autowired
+	private SessionFactory session;
+
+	@Override
+	public void add(Student student) {
+		session.getCurrentSession().save(student);
+	}
+
+	@Override
+	public void edit(Student student) {
+		session.getCurrentSession().update(student);
+	}
+
+	@Override
+	public void delete(int studentId) {
+		session.getCurrentSession().delete(getStudent(studentId));
+	}
+
+	@Override
+	public Student getStudent(int studentId) {
+		return (Student) session.getCurrentSession().get(Student.class, studentId);
+	}
+
+	@Override
+	public List getAllStudent() {
+		return session.getCurrentSession().createQuery("from Student").list();
+	}
+}
+5) service
+public interface StudentService {
+	public void add(Student student);
+	public void edit(Student student);
+	public void delete(int studentId);
+	public Student getStudent(int studentId);
+	public List getAllStudent();
+}
+6)service impl
+@Service
+public class StudentServiceImpl implements StudentService {
+	@Autowired
+	private StudentDao studentDao;
+
+	@Transactional
+	public void add(Student student) {
+		studentDao.add(student);
+	}
+
+	@Transactional
+	public void edit(Student student) {
+		studentDao.edit(student);
+	}
+
+	@Transactional
+	public void delete(int studentId) {
+		studentDao.delete(studentId);
+	}
+
+	@Transactional
+	public Student getStudent(int studentId) {
+		return studentDao.getStudent(studentId);
+	}
+
+	@Transactional
+	public List getAllStudent() {
+		return studentDao.getAllStudent();
+	}
+}
+7)web inf
+jdbc.properties
+----------------------------
+jdbc.driverClassName=com.mysql.jdbc.Driver
+jdbc.dialect=org.hibernate.dialect.MySQLDialect
+jdbc.databaseurl=jdbc:mysql://localhost:3306/StudentDB
+jdbc.username=root
+jdbc.password=welcome
+
+includes.js
+--------------
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1"%>
+<%@taglib uri="http://www.springframework.org/tags" prefix="spring"%>
+<%@taglib uri="http://www.springframework.org/tags/form" prefix="form"%>
+<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+
+<!-- This contains the most used tag libraries -->
+
+student.jsp
+------------------
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+	pageEncoding="ISO-8859-1"%>
+<%@ include file="/WEB-INF/jsp/includes.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Student Management</title>
+</head>
+<body>
+	<h1>Students Data</h1>
+	<form:form action="student.do" method="POST" commandName="student">
+		<table>
+			<tr>
+				<td>Student ID</td>
+				<td><form:input path="studentId" /></td>
+			</tr>
+			<tr>
+				<td>First name</td>
+				<td><form:input path="firstname" /></td>
+			</tr>
+			<tr>
+				<td>Last name</td>
+				<td><form:input path="lastname" /></td>
+			</tr>
+			<tr>
+				<td>Year Level</td>
+				<td><form:input path="yearLevel" /></td>
+			</tr>
+			<tr>
+				<td colspan="2"><input type="submit" name="action" value="Add" />
+					<input type="submit" name="action" value="Edit" /> <input
+					type="submit" name="action" value="Delete" /> <input type="submit"
+					name="action" value="Search" /></td>
+			</tr>
+		</table>
+	</form:form>
+	<br>
+	<table border="1">
+		<thead>
+			<tr>
+				<th>ID</th>
+				<th>First name</th>
+				<th>Last name</th>
+				<th>Year level</th>
+			</tr>
+		<thead>
+		<tbody>
+			<c:forEach items="${studentList}" var="student">
+				<tr>
+					<td>${student.studentId}</td>
+					<td>${student.firstname}</td>
+					<td>${student.lastname}</td>
+					<td>${student.yearLevel}</td>
+				</tr>
+			</c:forEach>
+		</tbody>
+	</table>
+</body>
+</html>
+
+**spring-servlet.xml
+--------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:lang="http://www.springframework.org/schema/lang"
+	xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+
+
+	<context:annotation-config />
+	<context:component-scan
+		base-package="com.*******" />
+
+
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+		p:location="/WEB-INF/jdbc.properties" />
+
+	<bean id="dataSource"
+		class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close"
+		p:driverClassName="${jdbc.driverClassName}"
+		p:url="${jdbc.databaseurl}" p:username="${jdbc.username}"
+		p:password="${jdbc.password}" />
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation">
+			<value>classpath:hibernate.cfg.xml</value>
+		</property>
+		<property name="configurationClass">
+			<value>org.hibernate.cfg.AnnotationConfiguration</value>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">${jdbc.dialect}</prop>
+				<prop key="hibernate.show_sql">true</prop>
+			</props>
+		</property>
+	</bean>
+	<bean id="viewResolver"
+		class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+		<property name="viewClass"
+			value="org.springframework.web.servlet.view.JstlView" />
+		<property name="prefix" value="/WEB-INF/jsp/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+	<tx:annotation-driven />
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+</beans>
+
+----
+web.xml
+--------------
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" id="WebApp_ID" version="3.0">
+  <display-name>CRUDWebAppMavenized</display-name>
+  
+  <context-param>
+		<param-name>log4jConfigLocation</param-name>
+		<param-value>classpath:log4j.xml</param-value>
+	</context-param>
+	<listener>
+		<listener-class>org.springframework.web.util.Log4jConfigListener</listener-class>
+	</listener>
+
+	<servlet>
+		<servlet-name>spring</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>spring</servlet-name>
+		<url-pattern>/</url-pattern>
+	</servlet-mapping>
+  
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+</web-app>
+
+pom
+--
+<properties>
+		<org.springframework.version>3.0.5.RELEASE</org.springframework.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-beans</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-jdbc</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-orm</artifactId>
+			<version>${org.springframework.version}</version>
+		</dependency>
+
+		<!-- Hibernate resources -->
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-entitymanager</artifactId>
+			<version>3.6.7.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>4.3.0.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-commons-annotations</artifactId>
+			<version>3.3.0.ga</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-annotations</artifactId>
+			<version>3.3.1.GA</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-core</artifactId>
+			<version>3.3.2.GA</version>
+		</dependency>
+		<dependency>
+			<groupId>taglibs</groupId>
+			<artifactId>standard</artifactId>
+			<version>1.1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+			<version>1.1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-dbcp</groupId>
+			<artifactId>commons-dbcp</artifactId>
+			<version>20030825.184428</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-pool</groupId>
+			<artifactId>commons-pool</artifactId>
+			<version>20030825.183949</version>
+		</dependency>
+		<!-- MySQL -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.6</version>
+		</dependency>
+		<!-- Log4j -->
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.14</version>
+			<type>jar</type>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+
+	<build>
+		<testSourceDirectory>src/main/test</testSourceDirectory>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<excludes>
+					<exclude>**/*.java</exclude>
+				</excludes>
+			</resource>
+			<resource>
+				<directory>src/main/webapp</directory>
+				<excludes>
+					<exclude>**/*.java</exclude>
+				</excludes>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.3.2</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
